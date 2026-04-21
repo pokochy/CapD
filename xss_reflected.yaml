@@ -1,0 +1,31 @@
+id: xss-reflected
+info:
+  name: 'Reflected XSS 스캔'
+  severity: 'high'
+  description: '반사형 XSS 탐지 — 페이로드가 응답에 그대로 반사되는 취약점'
+
+definition:
+  method: ['GET', 'POST']
+  position: ['query', 'body', 'form_field']
+
+payloads:
+  - '<script>alert(1)</script>'
+  - '><script>alert(1)</script>'
+  - '><img src=x onerror=alert(1)>'
+  - 'javascript:alert(1)'
+  - '<svg onload=alert(1)>'
+  - "'><svg/onload=alert(1)>"
+
+matchers-condition: or
+
+matchers:
+  - type: word
+    words:
+      - '<script>alert(1)</script>'
+      - 'onerror=alert(1)'
+      - 'onload=alert(1)'
+
+  - type: regex
+    regex:
+      - '<script[^>]*>.*?alert\('
+      - 'on\w+=.{0,10}alert\('

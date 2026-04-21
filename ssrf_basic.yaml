@@ -1,0 +1,33 @@
+id: ssrf-basic
+info:
+  name: 'SSRF 기본 탐지'
+  severity: 'high'
+  description: 'Server-Side Request Forgery — 내부 메타데이터 서비스 접근 시도 탐지'
+
+definition:
+  method: ['GET', 'POST']
+  position: ['query', 'body', 'form_field']
+
+payloads:
+  - 'http://169.254.169.254/latest/meta-data/'
+  - 'http://metadata.google.internal/computeMetadata/v1/'
+  - 'http://127.0.0.1/'
+  - 'http://localhost/'
+
+matchers-condition: or
+
+matchers:
+  # AWS 메타데이터 키워드
+  - type: word
+    words:
+      - 'ami-id'
+      - 'instance-id'
+      - 'security-credentials'
+  # GCP 메타데이터 키워드
+  - type: word
+    words:
+      - 'computeMetadata'
+      - 'instance/service-accounts'
+  # 내부 서비스 응답 상태코드
+  - type: status
+    status: [200]
