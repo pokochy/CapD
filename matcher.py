@@ -13,8 +13,8 @@ from typing import Callable
 
 import requests
 
-from core.models import MatcherResult
-from core.template_loader import MatcherDef, ScanTemplate
+from models import MatcherResult
+from template_loader import MatcherDef, ScanTemplate
 
 logger = logging.getLogger("Matcher")
 

@@ -18,11 +18,11 @@ from pathlib import Path
 
 import httpx
 
-from core.injector        import build_request
-from core.matcher         import evaluate_matchers
-from core.models          import ScanResult, ScanTarget
-from core.template_loader import ScanTemplate, load_templates
-from core.validator       import validate_url, ValidationError
+from injector        import build_request
+from matcher         import evaluate_matchers
+from models          import ScanResult, ScanTarget
+from template_loader import ScanTemplate, load_templates
+from validator       import validate_url, ValidationError
 
 logger = logging.getLogger("ScanEngine")
 

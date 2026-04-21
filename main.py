@@ -14,15 +14,24 @@ import sys
 import urllib.parse as urlparse
 from pathlib import Path
 
-from core.analyzer        import Analyzer
-from core.engine          import ScanEngine
-from core.logger          import setup_logging
-from core.models          import CrawledPage, FormDef, FieldDef
-from core.reporter        import print_summary, save_json, save_text
-from core.template_loader import load_templates
-from core.validator       import validate_url, validate_rate_limit, validate_timeout, ValidationError
+from analyzer        import Analyzer
+from crawler         import discover_page
+from engine          import ScanEngine
+from logger          import setup_logging
+from models          import CrawledPage, FormDef, FieldDef, ScanTarget
+from reporter        import print_summary, save_json, save_text
+from template_loader import load_templates
+from validator       import validate_url, validate_rate_limit, validate_timeout, ValidationError
 
 logger = logging.getLogger("Main")
+
+
+def _default_templates_root() -> str | None:
+    if Path("templates").exists():
+        return "templates"
+    if any(Path(".").glob("*.yaml")) or any(Path(".").glob("*.yml")):
+        return "."
+    return None
 
 
 # ──────────────────────────────────────────────
@@ -139,6 +148,49 @@ def _parse_cookies(raw_list: list[str]) -> dict[str, str]:
     return result
 
 
+def _target_key(target) -> tuple[str, str, str, str]:
+    return (target.position, target.method, target.url, target.param)
+
+
+def _merge_targets(*target_groups):
+    merged = []
+    seen = set()
+    for group in target_groups:
+        for target in group:
+            key = _target_key(target)
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(target)
+    return merged
+
+
+def _build_path_target(url: str) -> ScanTarget:
+    parsed = urlparse.urlparse(url)
+    path = parsed.path or "/"
+
+    if path in ("", "/"):
+        target_path = "/{path}"
+    else:
+        stripped = path.rstrip("/")
+        head, _, tail = stripped.rpartition("/")
+        replacement = "{path}" if tail else stripped
+        target_path = f"{head}/{replacement}" if head else f"/{replacement}"
+
+    target_url = urlparse.urlunparse(
+        (parsed.scheme, parsed.netloc, target_path, "", parsed.query, "")
+    )
+
+    return ScanTarget(
+        position="path",
+        url=target_url,
+        method="GET",
+        param="path",
+        extra={},
+        found_on=url,
+    )
+
+
 # ──────────────────────────────────────────────
 # 메인 로직
 # ──────────────────────────────────────────────
@@ -156,7 +208,10 @@ def main() -> int:
 
     # ── 템플릿 목록 출력 모드 ─────────────────────
     if args.list_templates:
-        root = args.templates or "templates"
+        root = args.templates or _default_templates_root()
+        if not root:
+            print("오류: 템플릿 디렉터리나 YAML 템플릿 파일을 찾지 못했습니다.", file=sys.stderr)
+            return 1
         try:
             tmpls = load_templates(root, args.categories or None)
         except FileNotFoundError as exc:
@@ -195,12 +250,11 @@ def main() -> int:
     templates_dir = args.templates
 
     if not template_file and not templates_dir:
-        # 기본값: ./templates 디렉터리
-        templates_dir = "templates"
-        if not Path(templates_dir).exists():
+        templates_dir = _default_templates_root()
+        if not templates_dir:
             logger.error(
-                "--template 또는 --templates 를 지정하거나 "
-                "'templates/' 디렉터리를 생성하세요."
+                "--template 또는 --templates를 지정하거나 "
+                "'templates/' 디렉터리 또는 현재 폴더에 YAML 템플릿 파일을 준비하세요."
             )
             return 1
 
@@ -225,6 +279,12 @@ def main() -> int:
     # ── ScanTarget 생성 ───────────────────────────
     analyzer = Analyzer()
     targets  = analyzer.parse_request(crawl_data)
+
+    if args.method == "GET" and not args.body:
+        auto_pages = discover_page(url, extra_headers, timeout)
+        if auto_pages:
+            targets = _merge_targets(targets, analyzer.build_targets(auto_pages))
+        targets = _merge_targets(targets, [_build_path_target(url)])
 
     if not targets:
         logger.warning(
@@ -255,7 +315,7 @@ def main() -> int:
         )
         # 로드 실패 시 단일 파일 직접 파싱으로 대체
         if not engine.templates:
-            from core.template_loader import _parse_template
+            from template_loader import _parse_template
             try:
                 cat  = tmpl_path.parent.name
                 tmpl = _parse_template(tmpl_path, cat)
@@ -282,7 +342,7 @@ def main() -> int:
         return 1
 
     logger.info(
-        "스캔 시작 — 대상: %s | 템플릿: %d개 | 타임아웃: %ss | RPS: %s",
+        "스캔 시작 - 대상: %s | 템플릿: %d개 | 타임아웃: %ss | RPS: %s",
         url, len(engine.templates), timeout, rate,
     )
 

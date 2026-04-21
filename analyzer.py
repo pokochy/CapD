@@ -13,7 +13,7 @@ import json
 import logging
 import urllib.parse as urlparse
 
-from core.models import CrawledPage, ScanTarget
+from models import CrawledPage, ScanTarget
 
 logger = logging.getLogger("Analyzer")
 

@@ -14,8 +14,8 @@ from urllib.parse import quote, urlencode
 
 import requests
 
-from core.models import ScanTarget
-from core.validator import sanitize_header_value
+from models import ScanTarget
+from validator import sanitize_header_value
 
 logger = logging.getLogger("Injector")
 

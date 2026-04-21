@@ -14,7 +14,7 @@ from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 
-from core.models import ScanResult
+from models import ScanResult
 
 logger = logging.getLogger("Reporter")
 
