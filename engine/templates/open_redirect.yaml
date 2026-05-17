@@ -1,0 +1,32 @@
+id: open-redirect
+info:
+  name: "Open Redirect"
+  severity: medium
+  description: >
+    검증 없이 사용자 입력 URL로 리다이렉트할 때 발생하는 취약점.
+    피싱 공격에 악용 가능. Location 헤더에 공격자 도메인이 포함되면 취약으로 판정.
+  tags: [redirect, open-redirect]
+
+definition:
+  method: [GET]
+  position: [query]
+
+payload_groups:
+  - group: redirect_basic
+    engine: "기본 외부 도메인 리다이렉트"
+    payloads:
+      - "https://evil.com"
+      - "//evil.com"
+      - "/\\evil.com"
+      - "https://evil.com%2F@legit.com"
+      - "/%09/evil.com"
+
+matchers_condition: or
+
+matchers:
+  - name: redirect_to_evil
+    type: regex
+    description: "Location 헤더 또는 응답 바디에 evil.com 포함"
+    regex:
+      - "evil\\.com"
+      - "location:\\s*https?://evil"
