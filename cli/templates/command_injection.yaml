@@ -1,0 +1,35 @@
+id: cmdi-basic
+info:
+  name: 'Command Injection'
+  severity: 'critical'
+  description: '사용자 입력이 OS 명령어에 그대로 삽입될 때 발생하는 취약점. whoami / id 명령어 실행 결과가 응답에 반사되면 취약'
+
+definition:
+  method: ['GET', 'POST']
+  position: ['query', 'body', 'form_field']
+
+payloads:
+  - '; whoami'               # Linux — 명령어 이어붙이기
+  - '| whoami'               # Linux — 파이프
+  - '&& whoami'              # Linux — AND 연산
+  - '`whoami`'               # Linux — 백틱 치환
+  - '; id'                   # Linux — uid/gid 정보
+  - '| id'
+  - '& whoami'               # Windows
+  - '& ver'                  # Windows 버전 확인
+
+matchers-condition: or
+
+matchers:
+  - type: word
+    words:
+      - 'root'               # Linux root 계정
+      - 'www-data'           # 웹서버 기본 계정
+      - 'daemon'
+      - 'apache'
+      - 'nginx'
+      - 'Microsoft Windows'  # Windows & ver 결과
+  - type: regex
+    regex:
+      - 'uid=\d+\(.*?\)\s+gid=\d+'   # id 명령어 출력 형식
+      - '[a-z_][a-z0-9_-]{0,31}'   # whoami 출력 형식 (소문자 유저명)
