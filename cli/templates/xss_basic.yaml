@@ -1,0 +1,26 @@
+id: xss-reflected
+info:
+  name: 'Reflected XSS Scan'
+  severity: 'high'
+  description: '반사형 XSS 탐지'
+
+definition:
+  method: ['GET', 'POST']
+  position: ['query', 'body', 'form_field']
+
+payloads:
+  - '<script>alert(1)</script>'
+  - '"><img src=x onerror=alert(1)>'
+
+matchers-condition: or
+
+matchers:
+  - type: word
+    words:
+      - '<script>alert(1)</script>'
+      - 'onerror=alert(1)'
+
+  # status 200 은 or 조건에서 모든 응답을 취약점으로 오탐하므로 제거
+  # regex 는 XSS 와 무관한 패스워드 파일 패턴이므로 제거
+  # size 1337 은 실제 매칭 가능성 없으므로 제거
+  # time 은 XSS 탐지에 적합하지 않으므로 제거

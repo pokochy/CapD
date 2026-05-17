@@ -1,0 +1,25 @@
+definition:
+  method:
+  - GET
+  - POST
+  position:
+  - query
+  - body
+  - form_field
+id: xss-reflected
+info:
+  description: 반사형 XSS 스캔
+  name: Reflected XSS
+  severity: high
+matchers:
+- type: word
+  words:
+  - <script>alert
+  - onerror=alert
+  - javascript:alert
+matchers-condition: or
+payloads:
+- <script>alert(1)</script>
+- <img src=x onerror=alert(1)>
+- '"><script>alert(document.domain)</script>'
+- javascript:alert(1)
